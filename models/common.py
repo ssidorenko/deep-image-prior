@@ -91,9 +91,33 @@ def act(act_fun = 'LeakyReLU'):
     else:
         return act_fun()
 
+class BatchNorm2(nn.Module):
+    def __init__(self, num_features):
+        super().__init__()
+        self.bn = nn.BatchNorm2d(num_features, affine=False)
+        self.weight = nn.Parameter(torch.Tensor([num_features]))
+        self.bias = nn.Parameter(torch.Tensor([num_features]))
+        self.reset_parameters()
+    
+    def reset_parameters(self):
+        self.bn.reset_parameters()
+        self.weight.data.uniform_()
+        self.bias.data.zero_()
 
+    def forward(self, input):
+        x = self.bn(input)
+        x = x * self.weight + self.bias
+        return x
+
+    
+    
 def bn(num_features):
-    return nn.BatchNorm2d(num_features)
+#     return BatchNorm2(num_features)
+    bn = nn.BatchNorm2d(num_features, eps=1e-06)
+#     bn = nn.BatchNorm2d(num_features)
+#     bn.weight.data.fill_(1.0)
+#     bn.bias.data.zero_()
+    return bn
 
 
 def conv(in_f, out_f, kernel_size, stride=1, bias=True, pad='zero', downsample_mode='stride'):
