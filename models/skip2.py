@@ -49,12 +49,13 @@ def skip2(
     
         if num_channels_skip[i] != 0:
             model_tmp = nn.Sequential(Concat(1, skip, model_tmp), inner)
+            skip.add(conv(input_depth, input_depth, filter_skip_size, bias=need_bias, pad=pad))
+            skip.add(bn(input_depth))
+            skip.add(act(act_fun))
             skip.add(conv(input_depth, num_channels_skip[i], filter_skip_size, bias=need_bias, pad=pad))
             skip.add(bn(num_channels_skip[i]))
             skip.add(act(act_fun))
-#             skip.add(conv(num_channels_skip[i], num_channels_skip[i], filter_skip_size, bias=need_bias, pad=pad))
-#             skip.add(bn(num_channels_skip[i]))
-#             skip.add(act(act_fun))
+
         else:
             model_tmp.add(inner)
 #         print("iteration {} after skip".format(i))
