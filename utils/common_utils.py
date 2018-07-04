@@ -86,6 +86,9 @@ def plot_image_grid(images_np, nrow =8, factor=1, interpolation='lanczos'):
     
     return grid
 
+def show_tensor(tensor, factor=8):
+    return plot_image_grid([np.clip(torch_to_np(tensor), 0, 1)], factor=factor)
+
 def load(path):
     """Load PIL image."""
     img = Image.open(path)
