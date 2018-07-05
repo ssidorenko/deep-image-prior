@@ -83,7 +83,7 @@ class Block(nn.Module):
         out = self.conv2(out)
         out = self.bn2(out)
         out = self.dropout2(out)
-        
+
 
         if self.config.need1x1_up:
             out = self.act2(out)
@@ -112,7 +112,7 @@ class Config(object):
     down_dilation = [1, 1, 1, 1, 1, 1]
     drop_p = 0.1
     # down_dilation = [1, 2, 2, 2, 4, 4]
-
+    skip = False
     need_bias = True
 
     def __init__(self, **kwargs):
@@ -125,7 +125,7 @@ class FlatDilatedNetwork(nn.Module):
         super().__init__()
         self.config = Config(**kwargs)
 
-        modules = [
+        self.input = Sequential(
             conv(
                 self.config.input_channels,
                 self.config.down_channels[0],
@@ -135,19 +135,21 @@ class FlatDilatedNetwork(nn.Module):
                 pad=self.config.pad),
             bn(self.config.down_channels[0]),
             act(self.config.act_fun),
-        ]
-        
+        )
+
         n_layers = len(self.config.down_channels)
         prev_channels = self.config.down_channels[0]
-        
+        self.blocks = []
         for i, (channels, stride, dilation) in enumerate(zip(self.config.down_channels, self.config.down_stride, self.config.down_dilation)):
             dilation = (dilation, 1 if (i % 2 == 0) or i <= n_layers - 2 else dilation)  # no dilation on first conv when on a new level
-            modules.append(Block(self.config, prev_channels, channels, stride, dilation, need1x1_up=self.config.need1x1_up))
+            module = Block(self.config, prev_channels, channels, stride, dilation, need1x1_up=self.config.need1x1_up)
+            self.add_module("resblock{}".format(i), module)
+            self.blocks.append(module)
             prev_channels = channels
-            
 
 
-        modules += [
+
+        self.out = Sequential(
             conv(
                 prev_channels,
                 self.config.output_channels,
@@ -156,10 +158,15 @@ class FlatDilatedNetwork(nn.Module):
                 pad=self.config.pad
             ),
             nn.Sigmoid()
-        ]
-
-        self.model = Sequential(*modules)
+        )
 
     def forward(self, x):
-        return self.model(x)
-        return checkpoint_sequential(self.model, 3, x)
+        x = self.input(x)
+        prev_x = x
+        for i, mod in enumerate(self.blocks):
+            if self.config.skip and i % self.config.skip == 0 and i:
+                x = mod(prev_x + x)
+                prev_x = x
+            else:
+                x = mod(x)
+        return self.out(x)
